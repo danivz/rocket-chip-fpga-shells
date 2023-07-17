@@ -172,6 +172,26 @@ class UARTVC709ShellPlacer(val shell: VC709Shell, val shellInput: UARTShellInput
 //   def place(designInput: JTAGDebugDesignInput) = new JTAGDebugVC709PlacedOverlay(shell, valName.name, designInput, shellInput)
 // }
 
+class PMBusVC709PlacedOverlay(val shell: VC709Shell, name: String, val designInput: I2CDesignInput, val shellInput: I2CShellInput)
+  extends I2CXilinxPlacedOverlay(name, designInput, shellInput)
+{
+  shell { InModuleBody {
+    val packagePinsWithPackageIOs = Seq(("AW37", IOPin(io.scl)),  // PMBus clk  AW37
+                                        ("AY39", IOPin(io.sda)))  // PMBus data AY39
+                                                                  // Leave PMBus alert unconfigured
+
+    packagePinsWithPackageIOs foreach { case (pin, io) => {
+      shell.xdc.addPackagePin(io, pin)
+      shell.xdc.addIOStandard(io, "LVCMOS18")
+    } }
+  } }
+}
+
+class PMBusVC709ShellPlacer(val shell: VC709Shell, val shellInput: I2CShellInput)(implicit val valName: ValName)
+  extends I2CShellPlacer[VC709Shell] {
+  def place(designInput: I2CDesignInput) = new PMBusVC709PlacedOverlay(shell, valName.name, designInput, shellInput)
+}
+
 class JTAGDebugBScanVC709PlacedOverlay(val shell: VC709Shell, name: String, val designInput: JTAGDebugBScanDesignInput, val shellInput: JTAGDebugBScanShellInput)
   extends JTAGDebugBScanXilinxPlacedOverlay(name, designInput, shellInput)
 class JTAGDebugBScanVC709ShellPlacer(val shell: VC709Shell, val shellInput: JTAGDebugBScanShellInput)(implicit val valName: ValName)
@@ -280,6 +300,7 @@ abstract class VC709Shell()(implicit p: Parameters) extends Series7Shell
   // val chiplink  = Overlay(ChipLinkOverlayKey, new ChipLinkVC709ShellPlacer(this, ChipLinkShellInput()))
   // val ddr       = Overlay(DDROverlayKey, new DDRVC709ShellPlacer(this, DDRShellInput()))
   // val sdio      = Overlay(SPIOverlayKey, new SDIOVC709ShellPlacer(this, SPIShellInput()))
+  val pmbus     = Overlay(I2COverlayKey, new PMBusVC709ShellPlacer(this, I2CShellInput(index = 0))(valName = ValName(s"pmbus")))
   val jtagBScan = Overlay(JTAGDebugBScanOverlayKey, new JTAGDebugBScanVC709ShellPlacer(this, JTAGDebugBScanShellInput()))
 }
 
