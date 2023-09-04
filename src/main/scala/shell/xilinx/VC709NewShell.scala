@@ -199,45 +199,46 @@ class JTAGDebugBScanVC709ShellPlacer(val shell: VC709Shell, val shellInput: JTAG
   def place(designInput: JTAGDebugBScanDesignInput) = new JTAGDebugBScanVC709PlacedOverlay(shell, valName.name, designInput, shellInput)
 }
 
-// case object VC7094GDDRSize extends Field[BigInt](0x40000000L * 4) // 4GB
-// class DDRVC709PlacedOverlay(val shell: VC709Shell, name: String, val designInput: DDRDesignInput, val shellInput: DDRShellInput)
-//   extends DDRPlacedOverlay[XilinxVC709MIGPads](name, designInput, shellInput)
-// {
-//   val size = if (designInput.vc7094gbdimm) p(VC7094GDDRSize) else p(VC7091GDDRSize)
+case object VC7094GDDRSize extends Field[BigInt](0x40000000L * 4) // 4GB
+class DDRVC709PlacedOverlay(val shell: VC709Shell, name: String, val designInput: DDRDesignInput, val shellInput: DDRShellInput)
+  extends DDRPlacedOverlay[XilinxVC709MIGPads](name, designInput, shellInput)
+{
+  val size = p(VC7094GDDRSize)
 
-//   val migParams = XilinxVC709MIGParams(address = AddressSet.misaligned(di.baseAddress, size))
-//   val mig = LazyModule(new XilinxVC709MIG(migParams))
-//   val ioNode = BundleBridgeSource(() => mig.module.io.cloneType)
-//   val topIONode = shell { ioNode.makeSink() }
-//   val ddrUI     = shell { ClockSourceNode(freqMHz = 200) }
-//   val areset    = shell { ClockSinkNode(Seq(ClockSinkParameters())) }
-//   areset := designInput.wrangler := ddrUI
+  val migParams = XilinxVC709MIGParams(address = AddressSet.misaligned(di.baseAddress, size))
+  val mig = LazyModule(new XilinxVC709MIG(migParams))
+  val ioNode = BundleBridgeSource(() => mig.module.io.cloneType)
+  val topIONode = shell { ioNode.makeSink() }
+  val ddrUI     = shell { ClockSourceNode(freqMHz = 200) }
+  val areset    = shell { ClockSinkNode(Seq(ClockSinkParameters())) }
+  areset := designInput.wrangler := ddrUI
 
-//   def overlayOutput = DDROverlayOutput(ddr = mig.node)
-//   def ioFactory = new XilinxVC709MIGPads(size)
+  def overlayOutput = DDROverlayOutput(ddr = mig.node)
+  def ioFactory = new XilinxVC709MIGPads(size)
 
-//   InModuleBody { ioNode.bundle <> mig.module.io }
+  InModuleBody { ioNode.bundle <> mig.module.io }
 
-//   shell { InModuleBody {
-//     require (shell.sys_clock.get.isDefined, "Use of DDRVC709PlacedOverlay depends on SysClockVC709PlacedOverlay")
-//     val (sys, _) = shell.sys_clock.get.get.overlayOutput.node.out(0)
-//     val (ui, _) = ddrUI.out(0)
-//     val (ar, _) = areset.in(0)
-//     val port = topIONode.bundle.port
-//     io <> port
-//     ui.clock := port.ui_clk
-//     ui.reset := !port.mmcm_locked || port.ui_clk_sync_rst
-//     port.sys_clk_i := sys.clock.asUInt
-//     port.sys_rst := sys.reset // pllReset
-//     port.aresetn := !ar.reset
-//   } }
+  shell { InModuleBody {
+    require (shell.sys_clock.get.isDefined, "Use of DDRVC709PlacedOverlay depends on SysClockVC709PlacedOverlay")
+    val (sys, _) = shell.sys_clock.get.get.overlayOutput.node.out(0)
+    val (ui, _) = ddrUI.out(0)
+    val (ar, _) = areset.in(0)
+    val port = topIONode.bundle.port
+    io <> port
+    ui.clock := port.ui_clk
+    ui.reset := !port.mmcm_locked || port.ui_clk_sync_rst
+    port.sys_clk_i := sys.clock.asUInt
+    port.sys_rst := sys.reset // pllReset
+    port.aresetn := !ar.reset
+  } }
 
-//   shell.sdc.addGroup(clocks = Seq("clk_pll_i"))
-// }
-// class DDRVC709ShellPlacer(val shell: VC709Shell, val shellInput: DDRShellInput)(implicit val valName: ValName)
-//   extends DDRShellPlacer[VC709Shell] {
-//   def place(designInput: DDRDesignInput) = new DDRVC709PlacedOverlay(shell, valName.name, designInput, shellInput)
-// }
+  shell.sdc.addGroup(clocks = Seq("clk_pll_i"))
+}
+
+class DDRVC709ShellPlacer(val shell: VC709Shell, val shellInput: DDRShellInput)(implicit val valName: ValName)
+  extends DDRShellPlacer[VC709Shell] {
+  def place(designInput: DDRDesignInput) = new DDRVC709PlacedOverlay(shell, valName.name, designInput, shellInput)
+}
 
 // class PCIeVC709PlacedOverlay(val shell: VC709Shell, name: String, val designInput: PCIeDesignInput, val shellInput: PCIeShellInput)
 //   extends PCIePlacedOverlay[XilinxVC709PCIeX1Pads](name, designInput, shellInput)
@@ -298,7 +299,7 @@ abstract class VC709Shell()(implicit p: Parameters) extends Series7Shell
   // val switch    = Seq.tabulate(8)(i => Overlay(SwitchOverlayKey, new SwitchVC709ShellPlacer(this, SwitchShellInput(number = i))(valName = ValName(s"switch_$i"))))
   // val button    = Seq.tabulate(5)(i => Overlay(ButtonOverlayKey, new ButtonVC709ShellPlacer(this, ButtonShellInput(number = i))(valName = ValName(s"button_$i"))))
   // val chiplink  = Overlay(ChipLinkOverlayKey, new ChipLinkVC709ShellPlacer(this, ChipLinkShellInput()))
-  // val ddr       = Overlay(DDROverlayKey, new DDRVC709ShellPlacer(this, DDRShellInput()))
+  val ddr       = Overlay(DDROverlayKey, new DDRVC709ShellPlacer(this, DDRShellInput()))
   // val sdio      = Overlay(SPIOverlayKey, new SDIOVC709ShellPlacer(this, SPIShellInput()))
   val pmbus     = Overlay(I2COverlayKey, new PMBusVC709ShellPlacer(this, I2CShellInput(index = 0))(valName = ValName(s"pmbus")))
   val jtagBScan = Overlay(JTAGDebugBScanOverlayKey, new JTAGDebugBScanVC709ShellPlacer(this, JTAGDebugBScanShellInput()))
