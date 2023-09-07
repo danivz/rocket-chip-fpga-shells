@@ -70,12 +70,12 @@ class ButtonVC709ShellPlacer(val shell: VC709Shell, val shellInput: ButtonShellI
   def place(designInput: ButtonDesignInput) = new ButtonVC709PlacedOverlay(shell, valName.name, designInput, shellInput)
 }
 
-class PMBusVC709PlacedOverlay(val shell: VC709Shell, name: String, val designInput: I2CDesignInput, val shellInput: I2CShellInput)
-  extends I2CXilinxPlacedOverlay(name, designInput, shellInput)
+class PMBusVC709PlacedOverlay(val shell: VC709Shell, name: String, val designInput: PMBusDesignInput, val shellInput: PMBusShellInput)
+  extends PMBusXilinxPlacedOverlay(name, designInput, shellInput)
 {
   shell { InModuleBody {
-    val packagePinsWithPackageIOs = Seq(("AW37", IOPin(io.scl)),  // PMBus clk  AW37
-                                        ("AY39", IOPin(io.sda)))  // PMBus data AY39
+    val packagePinsWithPackageIOs = Seq(("AW37", IOPin(io.clk)),  // PMBus clk  AW37
+                                        ("AY39", IOPin(io.data))) // PMBus data AY39
                                                                   // Leave PMBus alert unconfigured
 
     packagePinsWithPackageIOs foreach { case (pin, io) => {
@@ -85,9 +85,9 @@ class PMBusVC709PlacedOverlay(val shell: VC709Shell, name: String, val designInp
   } }
 }
 
-class PMBusVC709ShellPlacer(val shell: VC709Shell, val shellInput: I2CShellInput)(implicit val valName: ValName)
-  extends I2CShellPlacer[VC709Shell] {
-  def place(designInput: I2CDesignInput) = new PMBusVC709PlacedOverlay(shell, valName.name, designInput, shellInput)
+class PMBusVC709ShellPlacer(val shell: VC709Shell, val shellInput: PMBusShellInput)(implicit val valName: ValName)
+  extends PMBusShellPlacer[VC709Shell] {
+  def place(designInput: PMBusDesignInput) = new PMBusVC709PlacedOverlay(shell, valName.name, designInput, shellInput)
 }
 
 class JTAGDebugBScanVC709PlacedOverlay(val shell: VC709Shell, name: String, val designInput: JTAGDebugBScanDesignInput, val shellInput: JTAGDebugBScanShellInput)
@@ -149,7 +149,7 @@ abstract class VC709Shell()(implicit p: Parameters) extends Series7Shell
   val switch    = Seq.tabulate(8)(i => Overlay(SwitchOverlayKey, new SwitchVC709ShellPlacer(this, SwitchShellInput(number = i))(valName = ValName(s"switch_$i"))))
   val button    = Seq.tabulate(5)(i => Overlay(ButtonOverlayKey, new ButtonVC709ShellPlacer(this, ButtonShellInput(number = i))(valName = ValName(s"button_$i"))))
   val ddr       = Overlay(DDROverlayKey, new DDRVC709ShellPlacer(this, DDRShellInput()))
-  val pmbus     = Overlay(I2COverlayKey, new PMBusVC709ShellPlacer(this, I2CShellInput(index = 0))(valName = ValName(s"pmbus")))
+  val pmbus     = Overlay(PMBusOverlayKey, new PMBusVC709ShellPlacer(this, PMBusShellInput(index = 0))(valName = ValName(s"pmbus")))
   val jtagBScan = Overlay(JTAGDebugBScanOverlayKey, new JTAGDebugBScanVC709ShellPlacer(this, JTAGDebugBScanShellInput()))
 }
 
